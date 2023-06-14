@@ -1,55 +1,60 @@
 ## Overview
-This example shows how to manage HTTP/2 routes in App Mesh using Kubernetes deployments
+
+This repository is based on the example from AWS Repo that covers [base setup](https://github.com/aws/aws-app-mesh-examples/blob/main/walkthroughs/eks/base.md). The example
+here deploys the same the simple `color` application and provides the same expected result. For the traffic steering we use Istio ([Tetrate's distro](https://aws.amazon.com/marketplace/pp/prodview-rm6w3vwyibt46?sr=0-1&ref_=beagle&applicationId=AWSMPContessa)) while the upstream example leverages AWS App Mesh. This example allows App Mesh users to get the technical 
+guidance on migrating from AWS App Mesh to Istio. The Istio example can be run side-by-side in the same cluster with applications that use AWS App Mesh. Kubernetes `namespace` is a natural separator between the applications that leverage AWS App Mesh and Istio in the single cluster.
+
 
 ## Prerequisites
-1. [Walkthrough: App Mesh with EKS](../eks/)
 
-2. v1beta2 example manifest requires [aws-app-mesh-controller-for-k8s](https://github.com/aws/aws-app-mesh-controller-for-k8s) version [>=v1.0.0](https://github.com/aws/aws-app-mesh-controller-for-k8s/releases/tag/v1.0.0). Run the following to check the version of controller you are running.
-```
-$ kubectl get deployment -n appmesh-system appmesh-controller -o json | jq -r ".spec.template.spec.containers[].image" | cut -f2 -d ':'|tail -n1
-```
+1. Deploy Istio - any way to deploy Istio will work. The easiest one is probably via [Tetrate Istio Distro add-on](https://tetratelabs.github.io/tid-addon-workshop/4_deploy_tid_addon/). 
 
-You can use v1beta1 example manifest with [aws-app-mesh-controller-for-k8s](https://github.com/aws/aws-app-mesh-controller-for-k8s) version [=v0.3.0](https://github.com/aws/aws-app-mesh-controller-for-k8s/blob/legacy-controller/CHANGELOG.md)
+2. Install Docker. It is needed to build the demo application images.
 
-3. Install Docker. It is needed to build the demo application images.
+3. Make sure that kubectl and jq are deployed on your console.
+
+4. Your kubernetes context is pointing to the correct cluster.
 
 
 ## Setup
 
-1. Clone this repository and navigate to the walkthrough/howto-k8s-http2 folder, all commands will be ran from this location
+1. Clone this repository and navigate to the root directory., all commands will be ran from this location
 1. **Your** account id:
+
     ```
     export AWS_ACCOUNT_ID=<your_account_id>
     ```
+
 1. **Region** e.g. us-west-2
+
     ```
     export AWS_DEFAULT_REGION=us-west-2
     ```
-1. **(Optional) Specify Envoy Image version** If you'd like to use a different Envoy image version than the [default](https://github.com/aws/eks-charts/tree/master/stable/appmesh-controller#configuration), run `helm upgrade` to override the `sidecar.image.repository` and `sidecar.image.tag` fields, e.g.
-    ```
-    helm upgrade -i appmesh-controller eks/appmesh-controller --namespace appmesh-system --set sidecar.image.repository=840364872350.dkr.ecr.us-west-2.amazonaws.com/aws-appmesh-envoy --set sidecar.image.tag=<VERSION>
-    ```
-1. **VPC_ID** environment variable is set to the VPC where Kubernetes pods are launched. VPC will be used to setup private DNS namespace in AWS using create-private-dns-namespace API. To find out VPC of EKS cluster you can use aws eks describe-cluster.
-    ```
-    export VPC_ID=...
-    ```
-1. Deploy
+
+1. Deploy by running the script that is heavily modified version of the AWS App Mesh script
+
     ```.
-    ./deploy.sh
+    ./deploy-istio.sh
     ```   
     
 1. Note that the example apps use go modules. If you have trouble accessing https://proxy.golang.org during the deployment you can override the GOPROXY by setting `GO_PROXY=direct`
+
    ```
    GO_PROXY=direct ./deploy.sh
    ``` 
        
-1. Set up [port forwarding](https://kubernetes.io/docs/tasks/access-application-cluster/port-forward-access-application-cluster/) to route requests from your local computer to the **client** pod. The local port is up to you but we will assume the local port is **7000** for this walkthrough.
+1. Set up [port forwarding](https://kubernetes.io/docs/tasks/access-application-cluster/port-forward-access-application-cluster/) to route requests from your local computer to the **client** pod. The local port is up to you but we will assume the local port is **7000** for this walkthrough. Below is an example that retrieves namespace that is set by the `deploy-istio.sh` script.
 
-    
-## HTTP/2 Routing
-1. In order to view app logs you must find your client pod by running the following passing your namespace name:
+   ```bash
+   APP_ISTIO_NAMESPACE=$(kubectl get namespaces -ojson | jq -r .items[].metadata.name | grep "\-istio")
+   kubectl -n $APP_ISTIO_NAMESPACE port-forward deployment/client 7000:8080 > /dev/null &
+   ```
+
+1. In order to validate that the requests are distributed between your internal services equally run the requests against `client` pod. It will forward the requests to `color` service and those requests will be equally distributed between `red`, `green` and `blue` services by Istio **ROUND_ROBIN** algorithm:
+:
     ```
-    kubectl get pod -n <namespace>
+    END=3
+    for i in $(seq 1 $END); do curl -s localhost:7000/color; echo; done
     ```  
     
 1. Using the name of the client pod run the following command to tail the client app logs:
@@ -61,6 +66,12 @@ You can use v1beta1 example manifest with [aws-app-mesh-controller-for-k8s](http
     ```
     curl localhost:7000/color
     ```
-   
-1. You can edit these specifications in the manifest.yaml.template [here](./v1beta2/manifest.yaml.template). Run ./deploy.sh after any changes you make. For instance you can remove one of the weighted targets and trigger the curl command above to confirm that color route no longer appears.
 
+    The output should look similar to below:
+
+    ![Expected output](images/red-blue-green.png "Expected output")
+
+## Conclusion 
+
+This example helps to understand a general changes that allow to replace AWS App Mesh functionality with Istio powered Service Mesh. Please provide us your App Mesh use-case via GH Issues.
+This would allow Tetrate to share more examples on App Mesh migration to Istio Service Mesh.
