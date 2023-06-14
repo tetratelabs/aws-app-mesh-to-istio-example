@@ -1,0 +1,231 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ${APP_ISTIO_NAMESPACE}
+  labels:
+    istio-injection: enabled    
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  namespace: ${APP_ISTIO_NAMESPACE}
+  name: color
+spec:
+  host: color.${APP_ISTIO_NAMESPACE}.svc.cluster.local
+  workloadSelector:
+    matchLabels:
+      app: color
+  trafficPolicy:
+    loadBalancer:
+      simple: ROUND_ROBIN
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: color
+  namespace: ${APP_ISTIO_NAMESPACE}
+spec:
+  hosts:
+  - color.${APP_ISTIO_NAMESPACE}.svc.cluster.local
+  http:
+  - match:
+    - uri:
+        prefix: "/"
+    route:
+    - destination:
+        host: color
+#         subset: red
+#     route:
+#     - destination:
+#         host: color
+#         subset: green
+#     route:
+#     - destination:
+#         host: color
+#         subset: red
+#     route:
+#     - destination:
+#         host: color
+#         subset: blue
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: client
+  namespace: ${APP_ISTIO_NAMESPACE}
+spec:
+  ports:
+    - port: 8080
+      name: http2
+  selector:
+    app: client
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: client
+  namespace: ${APP_ISTIO_NAMESPACE}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: client
+  template:
+    metadata:
+      labels:
+        app: client
+    spec:
+      containers:
+        - name: app
+          image: ${CLIENT_APP_IMAGE}
+          ports:
+            - containerPort: 8080
+          env:
+            - name: "COLOR_HOST"
+              value: "color.${APP_ISTIO_NAMESPACE}.svc.cluster.local:8080"
+            - name: "PORT"
+              value: "8080"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: red
+  namespace: ${APP_ISTIO_NAMESPACE}
+spec:
+  ports:
+    - port: 8080
+      name: http2
+  selector:
+    app: color
+    version: red
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: red
+  namespace: ${APP_ISTIO_NAMESPACE}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: color
+      version: red
+  template:
+    metadata:
+      labels:
+        app: color
+        version: red
+    spec:
+      containers:
+        - name: app
+          image: ${COLOR_APP_IMAGE}
+          ports:
+            - containerPort: 8080
+          env:
+            - name: "COLOR"
+              value: "red"
+            - name: "PORT"
+              value: "8080"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: blue
+  namespace: ${APP_ISTIO_NAMESPACE}
+spec:
+  ports:
+    - port: 8080
+      name: http2
+  selector:
+    app: color
+    version: blue
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: blue
+  namespace: ${APP_ISTIO_NAMESPACE}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: color
+      version: blue
+  template:
+    metadata:
+      labels:
+        app: color
+        version: blue
+    spec:
+      containers:
+        - name: app
+          image: ${COLOR_APP_IMAGE}
+          ports:
+            - containerPort: 8080
+          env:
+            - name: "COLOR"
+              value: "blue"
+            - name: "PORT"
+              value: "8080"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: green
+  namespace: ${APP_ISTIO_NAMESPACE}
+spec:
+  ports:
+    - port: 8080
+      name: http2
+  selector:
+    app: color
+    version: green
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: green
+  namespace: ${APP_ISTIO_NAMESPACE}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: color
+      version: green
+  template:
+    metadata:
+      labels:
+        app: color
+        version: green
+    spec:
+      containers:
+        - name: app
+          image: ${COLOR_APP_IMAGE}
+          ports:
+            - containerPort: 8080
+          env:
+            - name: "COLOR"
+              value: "green"
+            - name: "PORT"
+              value: "8080"
+---
+# metadata:
+# spec:
+#   ports:
+#     - port: 8080
+#       name: http2
+apiVersion: v1
+kind: Service
+metadata:
+  name: color
+  namespace: ${APP_ISTIO_NAMESPACE}
+  labels:
+    app: color
+    service: color
+spec:
+  ports:
+  - port: 8080
+    name: http2
+  selector:
+    app: color
