@@ -7,20 +7,6 @@ metadata:
     istio-injection: enabled    
 ---
 apiVersion: networking.istio.io/v1alpha3
-kind: DestinationRule
-metadata:
-  namespace: ${APP_ISTIO_NAMESPACE}
-  name: color
-spec:
-  host: color.${APP_ISTIO_NAMESPACE}.svc.cluster.local
-  workloadSelector:
-    matchLabels:
-      app: color
-  trafficPolicy:
-    loadBalancer:
-      simple: ROUND_ROBIN
----
-apiVersion: networking.istio.io/v1alpha3
 kind: VirtualService
 metadata:
   name: color
@@ -35,19 +21,20 @@ spec:
     route:
     - destination:
         host: color
-#         subset: red
-#     route:
-#     - destination:
-#         host: color
-#         subset: green
-#     route:
-#     - destination:
-#         host: color
-#         subset: red
-#     route:
-#     - destination:
-#         host: color
-#         subset: blue
+---        
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  namespace: ${APP_ISTIO_NAMESPACE}
+  name: color
+spec:
+  host: color.${APP_ISTIO_NAMESPACE}.svc.cluster.local
+  workloadSelector:
+    matchLabels:
+      app: color
+  trafficPolicy:
+    loadBalancer:
+      simple: ROUND_ROBIN
 ---
 apiVersion: v1
 kind: Service
