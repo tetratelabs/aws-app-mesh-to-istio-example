@@ -31,6 +31,14 @@ guidance on migrating from AWS App Mesh to Istio. The Istio example can be run s
     export AWS_DEFAULT_REGION=us-west-2
     ```
 
+1. **Image Synchronization** (optional)
+
+   to save time if the images are already synchronized, setup the following flag:
+
+   ```bash
+   export SKIP_IMAGES=true
+   ```
+
 1. Deploy by running the script that is heavily modified version of the AWS App Mesh script
 
     ```.

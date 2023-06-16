@@ -26,9 +26,6 @@ metadata:
   name: color
 spec:
   host: color.${APP_ISTIO_NAMESPACE}.svc.cluster.local
-  workloadSelector:
-    matchLabels:
-      app: color
   trafficPolicy:
     loadBalancer:
       simple: ROUND_ROBIN
@@ -204,4 +201,4 @@ spec:
   - port: 8080
     name: http2
   selector:
-    app: color
+    app: color  
